@@ -60,3 +60,7 @@ target/
 
 #Ipython Notebook
 .ipynb_checkpoints
+
+#Extras
+data.2015.11.26/
+.directory
