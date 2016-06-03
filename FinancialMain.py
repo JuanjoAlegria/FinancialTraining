@@ -1,4 +1,5 @@
 import os
+import json
 import numpy as np
 from NeuralPython import MPINetwork
 
@@ -20,7 +21,8 @@ def loadFinancialData():
 
     return trainData, validationData, testData
 
-mNet = MPINetwork.buildFromDict()
+config = json.load(open("Config.json"))
+mNet = MPINetwork.buildFromDict(config)
 mNet.loadData(loadFinancialData)
 mNet.run()
 
