@@ -1,10 +1,12 @@
 # -*- coding: utf-8 -*-
-import sys
+import os
 import csv
 import datetime
 import numpy as np
 
-baseDir = sys.path[0] + "/Datos/data.2015.11.26/ticks/EURUSD-{0:04d}-{1:02d}.csv"
+baseDir = os.path.join(os.path.dirname(os.path.realpath(__file__)),
+                       "../Datos/data.2015.11.26/ticks/EURUSD-{0:04d}-{1:02d}.csv")
+
 
 def loadMonthData(year, month, interval):
     csvFile = open(baseDir.format(year, month), 'r')
@@ -87,7 +89,7 @@ def timeStringToTuple(s):
 
 
 if __name__ == "__main__":
-    [time, s1, s2]  = load(2014, 3, 2014, 3, 1440)
+    [time, s1, s2]  = load(2014, 1, 2014, 12, 1440)
     print "###################################"
     print np.shape(time)
     print np.shape(s1)
