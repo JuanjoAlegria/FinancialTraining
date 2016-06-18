@@ -91,33 +91,39 @@ def loadTest(y1, m1, y2, m2, regHorizon, predHorizon, intervals,
     return x[:nTest], xExtra[:nTest], y[:nTest]
 
 
-def loadFullWeeks(year1, month1, year2, month2, dataInterval, indexSerie = 0):
+def loadFullWeeks(year1, month1, year2, month2, dataInterval):
     weeks = []
-    series = []
+    serie1 = []
+    serie2 = []
     rawSeries = []
     times, s0, s1 = RawData.load(year1, month1, year2, month2, dataInterval)
     rawSeries.append(s0)
     rawSeries.append(s1)
 
     currentWeek = []
-    currentS = []
+    currentS1 = []
+    currentS2 = []
     currentWeekNumber = times[0].isocalendar()[1]
 
-    for t, s in zip(times, rawSeries[indexSerie]):
+    for t, s1, s2 in zip(times, s0, s1):
         if t.isocalendar()[1] != currentWeekNumber:
             weeks.append(currentWeek)
-            series.append(currentS)
+            serie1.append(currentS1)
+            serie2.append(currentS2)
             currentWeekNumber = t.isocalendar()[1]
             currentWeek = []
-            currentS = []
+            currentS1 = []
+            currentS2 = []
         currentWeek.append(t)
-        currentS.append(s)
+        currentS1.append(s1)
+        currentS2.append(s2)
 
     if currentWeek not in weeks:
         weeks.append(currentWeek)
-        series.append(currentS)
+        serie1.append(currentS1)
+        serie2.append(currentS2)
 
-    return postLoad(weeks, [series])
+    return weeks, serie1, serie2
 
 
 def avg_tuesday(week, serie):
@@ -133,7 +139,7 @@ def avg_tuesday(week, serie):
     return 1.0 * sum(tuesday) / len(tuesday)
 
 
-def postLoad(weeks, series):
+def postLoadFullWeeks(weeks, series):
 
     wReturn = []
     sReturn = []
@@ -189,6 +195,101 @@ def loadAndSaveFullYears(year, firstMonth = 1, lastMonth = 12):
         np.save("weeks" + str(year) + ".npy", w1)
         np.save("tuesdays" + str(year) + ".npy", t1)
 
+def mondayTuesday(weeks, serie1, serie2):
+    mon_tues = []
+    s1_mt = []
+    s2_mt = []
+    for w, s1, s2 in zip(weeks, serie1, serie2):
+        if len(w) > 48 and (w[0].isoweekday(), w[0].hour) == (1, 0) \
+            and (w[47].isoweekday(), w[47].hour) == (2, 23):
+            mon_tues.append(w[0:48])
+            s1_mt.append(s1[0:48])
+            s2_mt.append(s2[0:48])
+
+
+    return mon_tues, s1_mt, s2_mt
+
+def days(weeks, serie1, serie2):
+    mondayTuesday = []
+    wednesday = []
+    thursday = []
+    friday = []
+
+    s1_mt = []
+    s1_w = []
+    s1_t = []
+    s1_f =[]
+
+
+    s2_mt = []
+    s2_w = []
+    s2_t = []
+    s2_f = []
+
+    for week, s1, s2 in zip(weeks, serie1, serie2):
+        # verificamos que tenga lunes y martes completo
+        if len(week) > 48 and (week[0].isoweekday(), week[0].hour) == (1, 0) \
+            and (week[47].isoweekday(), week[47].hour) == (2, 23):
+            day = 3
+            indexes = []
+            for i in range(48, len(week)):
+                if day == 6:
+                    break
+                if week[i].isoweekday() == day:
+                    day += 1
+                    indexes.append(i)
+            if len(indexes) == 3:
+                w_index, t_index, f_index = indexes
+                mondayTuesday.append(week[0:48])
+                s1_mt.append(s1[0:48])
+                s2_mt.append(s2[0:48])
+
+                wednesday.append(week[w_index: t_index])
+                s1_w.append(s1[w_index: t_index])
+                s2_w.append(s2[w_index: t_index])
+
+                thursday.append(week[t_index: f_index])
+                s1_t.append(s1[t_index: f_index])
+                s2_t.append(s2[t_index: f_index])
+
+                friday.append(week[f_index:])
+                s1_f.append(s1[f_index:])
+                s2_f.append(s2[f_index:])
+
+    return np.array(mondayTuesday), np.array(wednesday), np.array(thursday), \
+        np.array(friday), np.array(s1_mt), np.array(s1_w), np.array(s1_t), \
+        np.array(s1_f), np.array(s2_mt), np.array(s2_w), np.array(s2_t), \
+        np.array(s2_f)
+
+def fullWeeks_avgNextWeek(weeks, serie1, serie2):
+    wReturn = []
+    s1Return = []
+    s2Return = []
+    yS1Return = []
+    yS2Return = []
+
+    for i in range(len(weeks) - 1):
+        w = weeks[i]
+        s1 = serie1[i]
+        s2 = serie2[i]
+        if len(w) >= 117 and (w[0].isoweekday(), w[0].hour) == (1, 0) \
+            and w[-1].isoweekday() == 5:
+            w = w[:117]
+            s1 = s1[:117]
+            s2 = s2[:117]
+            yS1 = np.array(serie1[i + 1]).mean()
+            yS2 = np.array(serie2[i + 1]).mean()
+
+
+            wReturn.append(np.array(w))
+            s1Return.append(np.array(s1))
+            s2Return.append(np.array(s2))
+            yS1Return.append(yS1)
+            yS2Return.append(yS2)
+
+    return np.array(wReturn), np.array(s1Return), np.array(s2Return), \
+                np.array(yS1Return), np.array(yS2Return)
+
 # for year in [2014, 2015]:
 #     for suffix in ['_s1', '_s2', '_avg']:
 #         x_filename = "x" + str(year) + suffix + ".npy"
@@ -210,3 +311,19 @@ def loadAndSaveFullYears(year, firstMonth = 1, lastMonth = 12):
 #     x2 = np.load(x2_name)
 #     xTotal = np.concatenate((x1, x2), axis = 1)
 #     np.save("x" + str(year) + "_both.npy", xTotal)
+
+
+weeks = np.load("../Datos/fullWeeks_2015.npy")
+serie1 = np.load("../Datos/fullS1_2015.npy")
+serie2 = np.load("../Datos/fullS2_2015.npy")
+
+w, s1, s2, ys1, ys2 = fullWeeks_avgNextWeek(weeks, serie1, serie2)
+
+np.save("weeks_avgNext_2015.npy", w)
+np.save("weeks_avgNext_2015_s1.npy", s1)
+np.save("weeks_avgNext_2015_s2.npy", s2)
+np.save("weeks_avgNext_2015_s1_y.npy", ys1)
+np.save("weeks_avgNext_2015_s2_y.npy", ys2)
+np.save("weeks_avgNext_2015_avg_y.npy", (ys1 + ys2) / 2)
+
+import pdb; pdb.set_trace()  # breakpoint 3bf31415 //
